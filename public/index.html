@@ -1,186 +1,614 @@
-head>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FC26 Live AI</title>
+
 <style>
-body{margin:0;background:#10131a;color:white;font-family:Arial,sans-serif;padding:20px}
-.box{max-width:700px;margin:auto}
-.card{background:#1b202a;border-radius:18px;padding:18px;margin:15px 0}
-h1{text-align:center;font-size:30px}
-input,textarea,button{width:100%;box-sizing:border-box;padding:14px;margin-top:8px;border-radius:12px;font-size:16px}
-input,textarea{background:#0d1016;color:white;border:1px solid #444}
-button{background:white;color:black;border:0;font-weight:bold}
-.score{text-align:center;font-size:38px;font-weight:bold}
-.teams{text-align:center;font-size:20px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat{background:#10141b;padding:15px;border-radius:12px}
-.stat b{font-size:25px;display:block;margin-top:5px}
-.gray{color:#9da5b4}
+body{
+margin:0;
+background:#10131a;
+color:white;
+font-family:Arial,sans-serif;
+padding:20px
+}
+
+.box{
+max-width:700px;
+margin:auto
+}
+
+.card{
+background:#1b202a;
+border-radius:18px;
+padding:18px;
+margin:15px 0
+}
+
+h1{
+text-align:center;
+font-size:30px
+}
+
+input,textarea,button{
+width:100%;
+box-sizing:border-box;
+padding:14px;
+margin-top:8px;
+border-radius:12px;
+font-size:16px
+}
+
+input,textarea{
+background:#0d1016;
+color:white;
+border:1px solid #444
+}
+
+button{
+background:white;
+color:black;
+border:0;
+font-weight:bold;
+cursor:pointer
+}
+
+.score{
+text-align:center;
+font-size:38px;
+font-weight:bold
+}
+
+.teams{
+text-align:center;
+font-size:20px
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px
+}
+
+.stat{
+background:#10141b;
+padding:15px;
+border-radius:12px
+}
+
+.stat b{
+font-size:25px;
+display:block;
+margin-top:5px
+}
+
+.gray{
+color:#9da5b4
+}
+
+#msg{
+min-height:22px
+}
 </style>
 </head>
 
 <body>
+
 <div class="box">
 
 <h1>⚽ FC26 Live AI</h1>
 
 <div class="card">
-<div class="gray">Ссылка на матч Fonbet</div>
-<input id="url" type="text" value=""placeholder="https://fonbet.com/..."> <div id="urlError" style="color:#ff7777;margin-top:8px"></div>
-<button onclick="getMatch()">ПОЛУЧИТЬ МАТЧ</button>
+
+<div class="gray">
+Ссылка на матч Fonbet
+</div>
+
+<input
+id="url"
+type="text"
+placeholder="https://fonbet.com/..."
+autocomplete="off"
+>
+
+<button
+id="getButton"
+type="button"
+>
+ПОЛУЧИТЬ МАТЧ
+</button>
+
 <p id="msg"></p>
+
 </div>
 
-<div class="card">
-<div class="gray">Матч</div>
-<div id="teams" class="teams">Команда 1 — Команда 2</div>
-<div id="score" class="score">0 : 0</div>
-<div id="minute" style="text-align:center">0 мин</div>
-</div>
 
 <div class="card">
+
+<div class="gray">
+Матч
+</div>
+
+<div id="teams" class="teams">
+Команда 1 — Команда 2
+</div>
+
+<div id="score" class="score">
+0 : 0
+</div>
+
+<div id="minute" style="text-align:center">
+0 мин
+</div>
+
+</div>
+
+
+<div class="card">
+
 <div class="grid">
-<div class="stat">ТБ 1.5<b id="o15">—</b></div>
-<div class="stat">ТБ 2.5<b id="o25">—</b></div>
-<div class="stat">ТБ 3.5<b id="o35">—</b></div>
-<div class="stat">Следующий гол<b id="next">—</b></div>
-</div>
+
+<div class="stat">
+ТБ 1.5
+<b id="o15">—</b>
 </div>
 
-<div class="card">
-<b id="signal">Ожидание данных</b>
-<p id="info" class="gray">Вставь ссылку на матч Fonbet.</p>
+<div class="stat">
+ТБ 2.5
+<b id="o25">—</b>
 </div>
 
+<div class="stat">
+ТБ 3.5
+<b id="o35">—</b>
+</div>
+
+<div class="stat">
+Следующий гол
+<b id="next">—</b>
+</div>
+
+</div>
+
+</div>
+
+
 <div class="card">
-<div class="gray">Ручной ввод</div>
-<textarea id="manual" rows="5"
+
+<b id="signal">
+Ожидание данных
+</b>
+
+<p id="info" class="gray">
+Вставь ссылку на матч Fonbet.
+</p>
+
+</div>
+
+
+<div class="card">
+
+<div class="gray">
+Ручной ввод
+</div>
+
+<textarea
+id="manual"
+rows="5"
 placeholder="FC 26
 Germany (Jiraz) - Netherlands (Shooter)
 1:0
-88 мин"></textarea>
-<button onclick="manualAnalyze()">РАССЧИТАТЬ</button>
+88 мин"
+></textarea>
+
+<button
+id="manualButton"
+type="button"
+>
+РАССЧИТАТЬ
+</button>
+
 </div>
 
 </div>
+
 
 <script>
+
+"use strict";
+
+
 function percent(x){
-return Math.max(1,Math.min(99,Math.round(x)))+"%";
+
+return Math.max(
+1,
+Math.min(99,Math.round(x))
+)+"%";
+
 }
 
+
+function fact(n){
+
+let r=1;
+
+for(let i=2;i<=n;i++){
+
+r*=i;
+
+}
+
+return r;
+
+}
+
+
 function calculate(d){
+
 let h=Number(d.homeScore)||0;
+
 let a=Number(d.awayScore)||0;
+
 let m=Number(d.minute)||0;
+
 let total=h+a;
+
 let remain=Math.max(0,90-m);
 
 let lambda=0.105*remain/10;
+
 let noGoal=Math.exp(-lambda);
+
 let next=100*(1-noGoal);
 
+
 function over(line){
+
 let need=line-total;
-if(need<=0)return 99;
+
+if(need<=0){
+
+return 99;
+
+}
 
 let s=0;
+
 for(let k=0;k<need;k++){
-s+=Math.pow(lambda,k)*Math.exp(-lambda)/fact(k);
-}
-return 100*(1-s);
+
+s+=
+Math.pow(lambda,k)*
+Math.exp(-lambda)/
+fact(k);
+
 }
 
-document.getElementById("o15").innerText=percent(over(2));
-document.getElementById("o25").innerText=percent(over(3));
-document.getElementById("o35").innerText=percent(over(4));
-document.getElementById("next").innerText=percent(next);
+return 100*(1-s);
+
+}
+
+
+document.getElementById("o15").innerText=
+percent(over(2));
+
+document.getElementById("o25").innerText=
+percent(over(3));
+
+document.getElementById("o35").innerText=
+percent(over(4));
+
+document.getElementById("next").innerText=
+percent(next);
+
 
 document.getElementById("signal").innerText=
-next>=65?"Высокая вероятность ещё одного гола":
-next>=40?"Средняя вероятность ещё одного гола":
+
+next>=65
+?
+"Высокая вероятность ещё одного гола"
+:
+next>=40
+?
+"Средняя вероятность ещё одного гола"
+:
 "Низкая вероятность ещё одного гола";
 
+
 document.getElementById("info").innerText=
-"Счёт "+h+":"+a+" • "+m+" мин • статистическая оценка";
+"Счёт "+
+h+":"+a+
+" • "+
+m+
+" мин • статистическая оценка";
+
 }
 
-function fact(n){
-let r=1;
-for(let i=2;i<=n;i++)r*=i;
-return r;
-}
 
 function show(d){
+
 document.getElementById("teams").innerText=
-(d.home||"Команда 1")+" — "+(d.away||"Команда 2");
+
+(d.home||"Команда 1")+
+" — "+
+(d.away||"Команда 2");
+
 
 document.getElementById("score").innerText=
-(Number(d.homeScore)||0)+" : "+(Number(d.awayScore)||0);
+
+(Number(d.homeScore)||0)+
+" : "+
+(Number(d.awayScore)||0);
+
 
 document.getElementById("minute").innerText=
-(Number(d.minute)||0)+" мин";
+
+(Number(d.minute)||0)+
+" мин";
+
 
 calculate(d);
+
 }
+
 
 async function getMatch(){
 
-let url=document.getElementById("url").value.trim();
+let input=
+document.getElementById("url");
+
+let msg=
+document.getElementById("msg");
+
+let url=
+input.value.trim();
+
 
 if(!url){
-document.getElementById("msg").innerText="Вставь ссылку Fonbet";
+
+msg.innerText=
+"Вставь ссылку Fonbet";
+
 return;
+
 }
 
-document.getElementById("msg").innerText="Получаю д
 
-url=url.replace(/\s+/g,"");
+msg.innerText=
+"Получаю данные...";
 
-if(!/^https?:\/\//i.test(url)){
-url="https://"+url;
-}
-
-let r=await fetch("/api/analyze-url",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"Accept":"application/json"
-},
-body:JSON.stringify({
-url:url
-})
-});
-
-let raw=await r.text();
-
-console.log("HTTP:",r.status);
-console.log("Ответ сервера:",raw);
-
-let d;
 
 try{
-d=JSON.parse(raw);
-}catch(e){
-throw new Error(
-"Сервер вернул не JSON. HTTP "+r.status+
-". Ответ: "+raw.substring(0,200)
+
+url=
+url.replace(/\s+/g,"");
+
+
+if(!/^https?:\/\//i.test(url)){
+
+url=
+"https://"+url;
+
+}
+
+
+let response=
+await fetch(
+"/api/analyze-url",
+{
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/json",
+
+"Accept":
+"application/json"
+},
+
+body:
+JSON.stringify({
+url:url
+})
+
+}
 );
-}
 
-if(!r.ok){
-throw new Error(d.error||"Ошибка сервера");
-}
 
-show(d);
+let text=
+await response.text();
 
-document.getElementById("msg").innerText="✓ Данные получены";
 
-}catch(e){
+let data;
 
-document.getElementById("msg").innerText=
-"Ошибка: "+(e.message||"Неизвестная ошибка");
 
-}
+try{
+
+data=
+JSON.parse(text);
 
 }
+
+catch(error){
+
+msg.innerText=
+"Ошибка сервера HTTP "+
+response.status;
+
+console.log(
+"Ответ сервера:",
+text
+);
+
+return;
+
+}
+
+
+if(!response.ok){
+
+msg.innerText=
+"Ошибка: "+
+(data.error||"Ошибка сервера");
+
+return;
+
+}
+
+
+show(data);
+
+msg.innerText=
+"✓ Данные получены";
+
+
+}
+
+catch(error){
+
+console.error(error);
+
+msg.innerText=
+"Ошибка соединения";
+
+}
+
+}
+
+
+async function manualAnalyze(){
+
+let text=
+document.getElementById("manual")
+.value.trim();
+
+let msg=
+document.getElementById("msg");
+
+
+if(!text){
+
+msg.innerText=
+"Вставь данные матча";
+
+return;
+
+}
+
+
+msg.innerText=
+"Рассчитываю...";
+
+
+try{
+
+let response=
+await fetch(
+"/api/analyze-text",
+{
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/json",
+
+"Accept":
+"application/json"
+},
+
+body:
+JSON.stringify({
+text:text
+})
+
+}
+);
+
+
+let raw=
+await response.text();
+
+
+let data;
+
+
+try{
+
+data=
+JSON.parse(raw);
+
+}
+
+catch(error){
+
+msg.innerText=
+"Ошибка сервера HTTP "+
+response.status;
+
+return;
+
+}
+
+
+if(!response.ok){
+
+msg.innerText=
+"Ошибка: "+
+(data.error||"Ошибка сервера");
+
+return;
+
+}
+
+
+show(data);
+
+msg.innerText=
+"✓ Рассчитано";
+
+
+}
+
+catch(error){
+
+console.error(error);
+
+msg.innerText=
+"Ошибка соединения";
+
+}
+
+}
+
+
+/* Запуск кнопок после полной загрузки страницы */
+
+document.addEventListener(
+"DOMContentLoaded",
+function(){
+
+let button=
+document.getElementById("getButton");
+
+let manualButton=
+document.getElementById("manualButton");
+
+
+button.addEventListener(
+"click",
+getMatch
+);
+
+
+manualButton.addEventListener(
+"click",
+manualAnalyze
+);
+
+}
+);
+
+</script>
+
+</body>
+</html>
