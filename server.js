@@ -1,4 +1,4 @@
-const express=require("express");
+express=require("express");
 const {chromium}=require("playwright");
 const app=express(); app.use(express.json({limit:"2mb"})); app.use(express.static("public"));
 const PORT=process.env.PORT||10000;
