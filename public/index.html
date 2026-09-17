@@ -1,182 +1,180 @@
-const express = require("express");
-const path = require("path");
-const { chromium } = require("playwright");
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FC26 Live AI</title>
+<style>
+body{margin:0;background:#10131a;color:white;font-family:Arial,sans-serif;padding:20px}
+.box{max-width:700px;margin:auto}
+.card{background:#1b202a;border-radius:18px;padding:18px;margin:15px 0}
+h1{text-align:center;font-size:30px}
+input,textarea,button{width:100%;box-sizing:border-box;padding:14px;margin-top:8px;border-radius:12px;font-size:16px}
+input,textarea{background:#0d1016;color:white;border:1px solid #444}
+button{background:white;color:black;border:0;font-weight:bold}
+.score{text-align:center;font-size:38px;font-weight:bold}
+.teams{text-align:center;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#10141b;padding:15px;border-radius:12px}
+.stat b{font-size:25px;display:block;margin-top:5px}
+.gray{color:#9da5b4}
+</style>
+</head>
 
-const app = express();
-const PORT = process.env.PORT || 10000;
-const PUBLIC_DIR = path.join(__dirname, "public");
+<body>
+<div class="box">
 
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true }));
+<h1>⚽ FC26 Live AI</h1>
 
-// Отдаём сайт из папки public
-app.use(express.static(PUBLIC_DIR));
+<div class="card">
+<div class="gray">Ссылка на матч Fonbet</div>
+<input id="url" placeholder="https://fonbet.com/...">
+<button onclick="getMatch()">ПОЛУЧИТЬ МАТЧ</button>
+<p id="msg"></p>
+</div>
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
-});
+<div class="card">
+<div class="gray">Матч</div>
+<div id="teams" class="teams">Команда 1 — Команда 2</div>
+<div id="score" class="score">0 : 0</div>
+<div id="minute" style="text-align:center">0 мин</div>
+</div>
 
-// Проверка сервера
-app.get("/api/health", (req, res) => {
-  res.json({
-    ok: true,
-    service: "FC26 Live AI"
-  });
-});
+<div class="card">
+<div class="grid">
+<div class="stat">ТБ 1.5<b id="o15">—</b></div>
+<div class="stat">ТБ 2.5<b id="o25">—</b></div>
+<div class="stat">ТБ 3.5<b id="o35">—</b></div>
+<div class="stat">Следующий гол<b id="next">—</b></div>
+</div>
+</div>
 
-// Разбор текста страницы Fonbet
-function parseMatchText(text) {
-  const lines = String(text || "")
-    .replace(/\r/g, "")
-    .split("\n")
-    .map(s => s.trim())
-    .filter(Boolean);
+<div class="card">
+<b id="signal">Ожидание данных</b>
+<p id="info" class="gray">Вставь ссылку на матч Fonbet.</p>
+</div>
 
-  const idx = lines.findIndex(s => /FC\s*26|Лига\s*Про/i.test(s));
-  const pool = idx >= 0
-    ? lines.slice(idx, idx + 100)
-    : lines.slice(0, 150);
+<div class="card">
+<div class="gray">Ручной ввод</div>
+<textarea id="manual" rows="5"
+placeholder="FC 26
+Germany (Jiraz) - Netherlands (Shooter)
+1:0
+88 мин"></textarea>
+<button onclick="manualAnalyze()">РАССЧИТАТЬ</button>
+</div>
 
-  let home = "";
-  let away = "";
-  let homeScore = 0;
-  let awayScore = 0;
-  let minute = 0;
+</div>
 
-  for (const line of pool) {
-    let m = line.match(
-      /(.+?)\s*[-–—]\s*(.+?)\s+(\d{1,2})\s*:\s*(\d{1,2})(?:\s+(\d{1,3})\s*(?:'|мин|м))?$/i
-    );
-
-    if (m) {
-      home = m[1].trim();
-      away = m[2].trim();
-      homeScore = Number(m[3]);
-      awayScore = Number(m[4]);
-
-      if (m[5]) {
-        minute = Number(m[5]);
-      }
-
-      break;
-    }
-
-    m = line.match(/(\d{1,2})\s*:\s*(\d{1,2})/);
-
-    if (m) {
-      homeScore = Number(m[1]);
-      awayScore = Number(m[2]);
-    }
-
-    m = line.match(/(\d{1,3})\s*(?:'|мин|минута)\b/i);
-
-    if (m) {
-      minute = Number(m[1]);
-    }
-  }
-
-  return {
-    home: home || "Команда 1",
-    away: away || "Команда 2",
-    homeScore,
-    awayScore,
-    minute
-  };
+<script>
+function percent(x){
+return Math.max(1,Math.min(99,Math.round(x)))+"%";
 }
 
-// Анализ вставленного текста
-app.post("/api/analyze-text", (req, res) => {
-  try {
-    res.json(parseMatchText(req.body?.text || ""));
-  } catch (e) {
-    res.status(400).json({
-      error: e.message
-    });
-  }
+function calculate(d){
+let h=Number(d.homeScore)||0;
+let a=Number(d.awayScore)||0;
+let m=Number(d.minute)||0;
+let total=h+a;
+let remain=Math.max(0,90-m);
+
+let lambda=0.105*remain/10;
+let noGoal=Math.exp(-lambda);
+let next=100*(1-noGoal);
+
+function over(line){
+let need=line-total;
+if(need<=0)return 99;
+
+let s=0;
+for(let k=0;k<need;k++){
+s+=Math.pow(lambda,k)*Math.exp(-lambda)/fact(k);
+}
+return 100*(1-s);
+}
+
+document.getElementById("o15").innerText=percent(over(2));
+document.getElementById("o25").innerText=percent(over(3));
+document.getElementById("o35").innerText=percent(over(4));
+document.getElementById("next").innerText=percent(next);
+
+document.getElementById("signal").innerText=
+next>=65?"Высокая вероятность ещё одного гола":
+next>=40?"Средняя вероятность ещё одного гола":
+"Низкая вероятность ещё одного гола";
+
+document.getElementById("info").innerText=
+"Счёт "+h+":"+a+" • "+m+" мин • статистическая оценка";
+}
+
+function fact(n){
+let r=1;
+for(let i=2;i<=n;i++)r*=i;
+return r;
+}
+
+function show(d){
+document.getElementById("teams").innerText=
+(d.home||"Команда 1")+" — "+(d.away||"Команда 2");
+
+document.getElementById("score").innerText=
+(Number(d.homeScore)||0)+" : "+(Number(d.awayScore)||0);
+
+document.getElementById("minute").innerText=
+(Number(d.minute)||0)+" мин";
+
+calculate(d);
+}
+
+async function getMatch(){
+let url=document.getElementById("url").value.trim();
+
+if(!url){
+document.getElementById("msg").innerText="Вставь ссылку Fonbet";
+return;
+}
+
+document.getElementById("msg").innerText="Получаю данные...";
+
+try{
+let r=await fetch("/api/analyze-url",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({url:url})
 });
 
-// Анализ ссылки Fonbet
-app.post("/api/analyze-url", async (req, res) => {
-  const target = String(req.body?.url || "").trim();
+let d=await r.json();
 
-  if (!target) {
-    return res.status(400).json({
-      error: "Не указана ссылка на матч."
-    });
-  }
+if(!r.ok)throw new Error(d.error||"Ошибка сервера");
 
-  let parsed;
+show(d);
+document.getElementById("msg").innerText="✓ Данные получены";
+}catch(e){
+document.getElementById("msg").innerText="Ошибка: "+e.message;
+}
+}
 
-  try {
-    parsed = new URL(target);
-  } catch {
-    return res.status(400).json({
-      error: "Неверная ссылка."
-    });
-  }
+async function manualAnalyze(){
+let text=document.getElementById("manual").value;
 
-  if (!/(^|\.)fonbet\.(com|ru)$/i.test(parsed.hostname)) {
-    return res.status(400).json({
-      error: "Разрешены только ссылки Fonbet."
-    });
-  }
-
-  let browser;
-
-  try {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox"
-      ]
-    });
-
-    const page = await browser.newPage({
-      viewport: {
-        width: 1280,
-        height: 900
-      }
-    });
-
-    await page.goto(target, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000
-    });
-
-    await page.waitForTimeout(3000);
-
-    const text = await page.locator("body").innerText({
-      timeout: 10000
-    });
-
-    res.json({
-      ...parseMatchText(text),
-      source: "Fonbet",
-      url: target
-    });
-
-  } catch (e) {
-    res.status(502).json({
-      error:
-        "Не удалось получить данные со страницы Fonbet: " +
-        e.message
-    });
-
-  } finally {
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
-  }
+try{
+let r=await fetch("/api/analyze-text",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({text:text})
 });
 
-// Для остальных адресов тоже отдаём приложение
-app.use((req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "index.html"));
-});
+let d=await r.json();
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    `FC26 Live AI server running on 0.0.0.0:${PORT}`
-  );
-});
+if(!r.ok)throw new Error(d.error||"Ошибка");
+
+show(d);
+document.getElementById("msg").innerText="✓ Рассчитано";
+}catch(e){
+document.getElementById("msg").innerText="Ошибка: "+e.message;
+}
+}
+</script>
+
+</body>
+</html>
